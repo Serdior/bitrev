@@ -1,0 +1,85 @@
+#!/usr/bin/env python3
+
+import os
+import argparse
+import subprocess
+import sys
+
+
+def shell(prog):
+    return subprocess.run(prog, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+
+def run_objdump(objfile):
+    objdump = shell(['objdump', '-h', objfile])
+
+    section = {}
+    for line in objdump.stdout.splitlines()[5::2]:
+        _, name, size, _, _, _, _ = line.split()
+        section[name.decode()] = int(size, 16)
+
+    return section
+
+
+def run_callgrind(prog, proc):
+    callgrind = shell(['valgrind', '--tool=callgrind',
+                       '--toggle-collect=' + proc,
+                       '--callgrind-out-file=callgrind.out'] + prog)
+    if callgrind.returncode:
+        sys.exit(callgrind.returncode)
+
+    annotate = shell(['callgrind_annotate', 'callgrind.out'])
+
+    section = None
+    procinst = {}
+    for line in annotate.stdout.decode().splitlines():
+        if not line or line.startswith('---'):
+            continue
+        if section == 'Ir':
+            insn, loc, _ = line.split()
+            procinst[loc] = int(insn.replace(',', ''))
+        if 'Ir' in line and 'file:function' in line:
+            section = 'Ir'
+
+    os.remove('callgrind.out')
+    return procinst
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+        description='Sprawdź liczbę wykonanych instrukcji.')
+    parser.add_argument('--max-size', type=str,
+                        help=('maksymalny rozmiar sekcji '
+                              'w podanej jednostce translacji'))
+    parser.add_argument('--max-insns', type=str,
+                        help=('maksymalna liczba wykonanych instrukcji '
+                              'dla procedury w podanym pliku'))
+    parser.add_argument('prog', type=str, nargs='+',
+                        help='program wraz z parametrami linii poleceń')
+    args = parser.parse_args()
+
+    filename, proc, max_insns = args.max_insns.split(':')
+    max_insns = int(max_insns)
+    objfile, max_size = args.max_size.split(':')
+    max_size = int(max_size)
+
+    profile = run_callgrind(args.prog, proc)
+    insns = profile.get('%s:%s' % (filename, proc), 0)
+    if insns == 0:
+        raise SystemExit('Nie znalazłem procedury "%s" w pliku "%s"!' %
+                         (proc, filename))
+    if insns > max_insns:
+        print('Liczba wykonanych instrukcji: %d.' % insns)
+        raise SystemExit('Przekroczono dopuszczalną liczbę '
+                         'wykonanych instrukcji: %d!' % max_insns)
+
+    sects = run_objdump(objfile)
+    text_size = sects.get('.text', 0)
+    data_size = sects.get('.data', 0) + sects.get('.rodata', 0)
+    bss_size = sects.get('.bss', 0)
+
+    if text_size + data_size + bss_size > max_size:
+        print('Rozmiar sekcji pliku "%s": text=%d, data=%d, bss=%d.' %
+              (args.max_size, text_size, data_size, bss_size))
+        raise SystemExit('Przekroczono łączny dopuszczalny rozmiar sekcji: %d!'
+                         % max_size)
