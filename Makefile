@@ -9,7 +9,7 @@ MAXINSNS ?= bitrev.s:bitrev:48
 RUN = ./run-solution --max-size $(MAXSIZE) --max-insns $(MAXINSNS) -- ./main
 
 /usr/bin/%:
-	apt-get install %
+	sudo apt-get install -qq $*
 
 build: main /usr/bin/valgrind
 

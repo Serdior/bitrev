@@ -14,9 +14,9 @@ def run_objdump(objfile):
     objdump = shell(['objdump', '-h', objfile])
 
     section = {}
-    for line in objdump.stdout.splitlines()[5::2]:
+    for line in objdump.stdout.decode().splitlines()[5::2]:
         _, name, size, _, _, _, _ = line.split()
-        section[name.decode()] = int(size, 16)
+        section[name] = int(size, 16)
 
     return section
 
@@ -26,7 +26,8 @@ def run_callgrind(prog, proc):
                        '--toggle-collect=' + proc,
                        '--callgrind-out-file=callgrind.out'] + prog)
     if callgrind.returncode:
-        sys.exit(callgrind.returncode)
+        print(callgrind.stdout.decode())
+        raise SystemExit('Your program gives wrong answer!')
 
     annotate = shell(['callgrind_annotate', 'callgrind.out'])
 
@@ -66,12 +67,13 @@ if __name__ == '__main__':
     profile = run_callgrind(args.prog, proc)
     insns = profile.get('%s:%s' % (filename, proc), 0)
     if insns == 0:
-        raise SystemExit('Nie znalazłem procedury "%s" w pliku "%s"!' %
+        raise SystemExit('Procedure "%s" not found in "%s"!' %
                          (proc, filename))
     if insns > max_insns:
-        print('Liczba wykonanych instrukcji: %d.' % insns)
-        raise SystemExit('Przekroczono dopuszczalną liczbę '
-                         'wykonanych instrukcji: %d!' % max_insns)
+        print('Executed instructions: %d.' % insns)
+        raise SystemExit('Your program takes to much time to run! '
+                         'Exceeded limit of executed instructions: %d!' %
+                         max_insns)
 
     sects = run_objdump(objfile)
     text_size = sects.get('.text', 0)
@@ -79,7 +81,7 @@ if __name__ == '__main__':
     bss_size = sects.get('.bss', 0)
 
     if text_size + data_size + bss_size > max_size:
-        print('Rozmiar sekcji pliku "%s": text=%d, data=%d, bss=%d.' %
-              (args.max_size, text_size, data_size, bss_size))
-        raise SystemExit('Przekroczono łączny dopuszczalny rozmiar sekcji: %d!'
-                         % max_size)
+        print('Sections size in "%s" object file: text=%d, data=%d, bss=%d.'
+              % (args.max_size, text_size, data_size, bss_size))
+        raise SystemExit('Your program takes too much space! '
+                         'Exceeded limit of sections size: %d.' % max_size)

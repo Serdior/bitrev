@@ -33,7 +33,7 @@ static void run(uint64_t arg) {
   uint64_t fast = bitrev(arg);
   uint64_t slow = bitrev_iter(arg);
   if (fast != slow) {
-    fprintf(stderr, "0x%016" PRIX64 " -> 0x%016" PRIX64 "\n", slow, fast);
+    printf("0x%016" PRIX64 " -> 0x%016" PRIX64 "\n", slow, fast);
     exit(EXIT_FAILURE);
   }
 }
