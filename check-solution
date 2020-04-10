@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+
+import argparse
+import subprocess
+import sys
+
+
+def shell(prog, *args):
+    return subprocess.run([prog] + list(args),
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+
+def sections(obj):
+    objdump = shell('objdump', '-h', obj)
+
+    sects = {}
+    for line in objdump.stdout.splitlines()[5::2]:
+        _, name, size, _, _, _, _ = line.split()
+        sects[name.decode()] = int(size, 16)
+    return sects
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+        description='Sprawdź parametry rozwiązania.')
+    parser.add_argument('--max-size', type=int,
+                        help='maksymalny rozmiar sekcji')
+    parser.add_argument('objfile', type=str,
+                        help='moduł translacji do sprawdzenia')
+    args = parser.parse_args()
+
+    sects = sections(args.objfile)
+    text_size = sects.get('.text', 0)
+    data_size = sects.get('.data', 0) + sects.get('.rodata', 0)
+    bss_size = sects.get('.bss', 0)
+
+    if text_size + data_size + bss_size > args.max_size:
+        print('Rozmiar sekcji: text={}, data={}, bss={}.'
+              .format(args.max_size, text_size, data_size, bss_size))
+        raise SystemExit('Przekroczono łączny dopuszczalny rozmiar sekcji: %d!'
+                         % args.max_size)
