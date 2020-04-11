@@ -3,6 +3,7 @@
 import os
 import argparse
 import subprocess
+from fnmatch import fnmatch
 
 
 def shell(prog):
@@ -95,10 +96,11 @@ if __name__ == '__main__':
 
     if args.bad_insns:
         insns = dump_instructions(objfile)
-        for insn in args.bad_insns.split(','):
-            if insn in insns:
-                raise SystemExit('Your program uses forbidden "%s" '
-                                 'instruction!' % insn)
+        for insn in insns:
+            for bad_insn in args.bad_insns.split(','):
+                if fnmatch(insn, bad_insn):
+                    raise SystemExit('Your program uses forbidden "%s" '
+                                     'instruction!' % insn)
 
     if args.min_ipc:
         ipc = dump_mca(source)['IPC']

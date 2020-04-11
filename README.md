@@ -11,6 +11,8 @@ działać w `O(log n)`, gdzie `n` jest długością słowa maszynowego w bitach.
 
 ### Ważne
 
-1. Można używać wyłącznie instrukcji poznanych na wykładzie i ćwiczeniach.
-2. Użycie instrukcji `bswap` lub podobnych jest niedozwolone!
+1. Można używać wyłącznie instrukcji arytmetyczno-logicznych poznanych na
+   wykładzie i ćwiczeniach.
+2. Użycie instrukcji `bswap` i instrukcji sterujących (poza `ret`) jest
+   niedozwolone!
 3. Modyfikowanie innych plików niż `bitrev.s` jest niedozwolone!
