@@ -53,7 +53,7 @@ if __name__ == '__main__':
     insns = profile.get(args.procedure, 0)
     if insns == 0:
         raise SystemExit('Procedure "%s" not found in "%s"!' % (
-                         args.procedure, args.source))
+                         procedure, source))
     if args.max_insns and insns > args.max_insns:
         print('Executed instructions: %d.' % insns)
         raise SystemExit('Your program takes to much time to run!\n'
