@@ -29,11 +29,46 @@ static uint64_t bitrev_iter(uint64_t x) {
   return r;
 }
 
+typedef union caller_regs {
+  struct {
+    uint64_t rbx;
+    uint64_t r12;
+    uint64_t r13;
+    uint64_t r14;
+    uint64_t rbp;
+  };
+  uint64_t reg[5];
+} caller_regs_t;
+
+#define save_caller_regs(regs)                                                 \
+  asm volatile("mov %%rbx,  0(%0);"                                            \
+               "mov %%r12,  8(%0);"                                            \
+               "mov %%r13, 16(%0);"                                            \
+               "mov %%r14, 24(%0);"                                            \
+               "mov %%rbp, 32(%0);"                                            \
+               : /* no outputs */                                              \
+               : "r" (regs)                                                    \
+               : "memory", "rbx", "r12", "r13", "r14", "rbp")
+
 static void run(uint64_t arg) {
-  uint64_t fast = bitrev(arg);
-  uint64_t slow = bitrev_iter(arg);
+  uint64_t fast, slow;
+
+  caller_regs_t before, after;
+  save_caller_regs(&before);
+  fast = bitrev(arg);
+  save_caller_regs(&after);
+
+  for (int i = 0; i < sizeof(caller_regs_t) / sizeof(uint64_t); i++) {
+    if (before.reg[i] != after.reg[i]) {
+      printf("bitrev(...) does not adhere to ABI calling convention!\n");
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  slow = bitrev_iter(arg);
   if (fast != slow) {
-    printf("0x%016" PRIX64 " -> 0x%016" PRIX64 "\n", slow, fast);
+    printf("bitrev(0x%016lx) = 0x%016lx (your answer: 0x%016lx)\n",
+           arg, slow, fast);
     exit(EXIT_FAILURE);
   }
 }
